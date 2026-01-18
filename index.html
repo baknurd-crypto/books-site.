@@ -3,50 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Читай Книги 📚</title>
+    <title>Библиотека 2009 — Читальный зал</title>
     <style>
-        body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; padding: 20px; margin: 0; }
-        .header { margin-bottom: 30px; }
-        input { padding: 15px; width: 85%; border-radius: 10px; border: none; font-size: 16px; margin-bottom: 10px; }
-        button { padding: 15px 30px; border-radius: 10px; background: #007bff; color: white; border: none; font-weight: bold; width: 90%; }
-        .books { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 30px; }
-        .book { background: #1e1e1e; padding: 20px; border-radius: 15px; border: 1px solid #333; }
-        img { width: 120px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.5); }
-        h3 { font-size: 18px; margin: 15px 0 5px; }
-        a { color: #4db8ff; text-decoration: none; font-weight: bold; border: 1px solid #4db8ff; padding: 8px 15px; border-radius: 5px; display: inline-block; margin-top: 10px; }
+        body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding-bottom: 50px; }
+        .header { background: #1e1e1e; padding: 20px; border-bottom: 2px solid #007bff; }
+        input { padding: 15px; width: 80%; border-radius: 10px; border: none; font-size: 16px; background: #2a2a2a; color: white; }
+        button { padding: 15px; width: 85%; border-radius: 10px; background: #007bff; color: white; border: none; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        .book { background: #1e1e1e; padding: 15px; border-radius: 15px; margin: 15px; border: 1px solid #333; }
+        img { width: 100px; border-radius: 5px; }
+        .read-btn { background: #28a745; color: white; padding: 12px; width: 100%; border-radius: 8px; border: none; font-weight: bold; margin-top: 10px; cursor: pointer; }
+        
+        /* ОКНО ДЛЯ ЧТЕНИЯ НА САЙТЕ */
+        #reader-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; }
+        #viewerCanvas { width: 100%; height: 90%; background: #fff; }
+        .close-btn { background: #ff4d4d; color: white; padding: 10px; width: 100%; border: none; font-weight: bold; }
     </style>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
 </head>
 <body>
+
     <div class="header">
         <h1>Библиотека 2009</h1>
-        <input type="text" id="searchInput" placeholder="Напиши название книги...">
-        <button onclick="searchBooks()">Найти книгу</button>
+        <input type="text" id="userInput" placeholder="Название книги или автор...">
+        <button onclick="search()">Найти и читать</button>
     </div>
-    <div id="results" class="books"></div>
+
+    <div id="results"></div>
+
+    <div id="reader-overlay">
+        <button class="close-btn" onclick="closeReader()">ЗАКРЫТЬ КНИГУ</button>
+        <div id="viewerCanvas"></div>
+    </div>
 
     <script>
-        async function searchBooks() {
-            const query = document.getElementById('searchInput').value;
-            if(!query) return;
-            const res = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=10`);
-            const data = await res.json();
+        google.load("books", "0");
+
+        async function search() {
+            const query = document.getElementById('userInput').value;
             const out = document.getElementById('results');
-            out.innerHTML = '';
+            out.innerHTML = 'Ищу...';
+
+            // Поиск именно по названию (intitle)
+            const url = `https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(query)}&langRestrict=ru&maxResults=10`;
             
-            if(!data.items) { out.innerHTML = 'Ничего не нашлось :('; return; }
+            const res = await fetch(url);
+            const data = await res.json();
+            out.innerHTML = '';
+
+            if(!data.items) {
+                out.innerHTML = 'Книга не найдена. Попробуй другое название.';
+                return;
+            }
 
             data.items.forEach(item => {
                 const info = item.volumeInfo;
-                const img = info.imageLinks ? info.imageLinks.thumbnail : 'https://via.placeholder.com/120x180?text=Нет+фото';
+                const bookId = item.id;
+                const img = info.imageLinks ? info.imageLinks.thumbnail : 'https://via.placeholder.com/100x150';
+                
                 out.innerHTML += `
                     <div class="book">
                         <img src="${img}">
                         <h3>${info.title}</h3>
-                        <p>${info.authors ? info.authors[0] : 'Автор не указан'}</p>
-                        <a href="${info.previewLink}" target="_blank">Читать онлайн</a>
+                        <p>${info.authors ? info.authors[0] : ''}</p>
+                        <button class="read-btn" onclick="openReader('${bookId}')">ЧИТАТЬ НА САЙТЕ</button>
                     </div>`;
             });
+        }
+
+        function openReader(id) {
+            document.getElementById('reader-overlay').style.display = 'block';
+            const viewer = new google.books.DefaultViewer(document.getElementById('viewerCanvas'));
+            viewer.load(id);
+        }
+
+        function closeReader() {
+            document.getElementById('reader-overlay').style.display = 'none';
         }
     </script>
 </body>
 </html>
+ 
